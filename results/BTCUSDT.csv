@@ -1,0 +1,5 @@
+strategy,initial_balance,final_balance,total_return_pct,total_trades,win_rate_pct,max_drawdown,avg_profit,avg_loss,rr_ratio,avg_trade_return
+trailing_stop_0.02,1000,1130.132438,13.01,22,40.91,55.21,25.93,7.94,3.27,5.92
+trailing_stop_0.015,1000,1205.669385,20.57,23,43.48,18.54,27.15,5.06,5.36,8.94
+takeprofit_0.03,1000,1099.798289,9.98,22,45.45,42.36,23.47,11.24,2.09,4.54
+test,1000,1020.7011693213191,2.07,22,36.36,65.03,22.43,11.34,1.98,0.94

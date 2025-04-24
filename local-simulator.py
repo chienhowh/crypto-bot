@@ -28,6 +28,7 @@ def log(message, level="INFO"):
 
 def fetch_latest_ohlcv(symbol='BTC/USDT', timeframe='5m', limit=50):
     ohlcv = exchange.fetch_ohlcv(symbol=symbol, timeframe=timeframe, limit=limit)
+    print("🚀 ~ ohlcv:", ohlcv)
     df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
     return df

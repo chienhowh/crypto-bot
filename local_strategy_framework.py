@@ -5,6 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import argparse
 import os
+import pandas as pd
 
 # --- 動態載入策略 ---
 def load_strategy(strategy_name):
@@ -18,7 +19,7 @@ def load_strategy(strategy_name):
     return module.strategy
 
 
-def analyze_backtest_dual(df, initial_balance=1000):
+def analyze_backtest_dual(df, symbol='BTC/USDT', initial_balance=1000, desc ='test'):
     balance = initial_balance
     position = None  # 'long' or 'short'
     entry_price = 0
@@ -103,6 +104,21 @@ def analyze_backtest_dual(df, initial_balance=1000):
     print(f"平均虧損：${avg_loss:.2f}")
     print(f"盈虧比（R:R）：{rr_ratio:.2f}")
     print(f"平均每筆報酬：${avg_trade_return:.2f}")
+    if desc:
+        save_summary_row(
+            desc=desc,
+            symbol=symbol,
+            initial_balance=initial_balance,
+            final_value=final_value,
+            total_return=total_return,
+            trades=trades,
+            win_rate=win_rate,
+            max_drawdown=max_drawdown,
+            avg_profit=avg_profit,
+            avg_loss=avg_loss,
+            rr_ratio=rr_ratio,
+            avg_trade_return=avg_trade_return
+        )
 
 def plot_signals(df, strategy_name):
     plt.figure(figsize=(12, 6))
@@ -133,6 +149,32 @@ def plot_signals(df, strategy_name):
     plt.tight_layout()
     plt.show()
 
+def save_summary_row(desc, symbol, initial_balance, final_value, total_return, trades, win_rate, max_drawdown, avg_profit, avg_loss, rr_ratio, avg_trade_return):
+    symbol_name = symbol.replace('/', '')
+    file_path = f'results/{symbol_name}.csv'
+    os.makedirs('results', exist_ok=True)
+
+    new_row = pd.DataFrame([{
+        'strategy': desc,
+        'initial_balance': initial_balance,
+        'final_balance': final_value,
+        'total_return_pct': round(total_return, 2),
+        'total_trades': len(trades),
+        'win_rate_pct': round(win_rate, 2),
+        'max_drawdown': round(max_drawdown, 2),
+        'avg_profit': round(avg_profit, 2),
+        'avg_loss': round(avg_loss, 2),
+        'rr_ratio': round(rr_ratio, 2),
+        'avg_trade_return': round(avg_trade_return, 2)
+    }])
+
+    if os.path.exists(file_path):
+        existing = pd.read_csv(file_path)
+        updated = pd.concat([existing, new_row], ignore_index=True)
+        updated.to_csv(file_path, index=False)
+    else:
+        new_row.to_csv(file_path, index=False)
+
 # --- 主程式 ---
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -140,11 +182,13 @@ if __name__ == '__main__':
     parser.add_argument('--symbol', type=str, default='BTC/USDT')
     parser.add_argument('--timeframe', type=str, default='1h')
     parser.add_argument('--limit', type=int, default=500)
+    parser.add_argument('--desc', type=str, default='test')
     parser.add_argument('--backtest', action='store_true', help='啟用回測模式')
     args = parser.parse_args()
 
     exchange = ccxt.binance()
     ohlcv = exchange.fetch_ohlcv(args.symbol, timeframe=args.timeframe, limit=args.limit)
+    print("🚀 ~ ohlcv:", ohlcv)
     df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
 
@@ -152,9 +196,9 @@ if __name__ == '__main__':
     df = strategy_fn(df)
 
     if args.backtest:
-        analyze_backtest_dual(df)
+        analyze_backtest_dual(df, symbol=args.symbol, desc=args.desc)
     else:
         plot_signals(df, args.strategy)
 # script
 # python strategy_framework.py --strategy cross_ma --limit 200 --backtest
-# python strategy_framework.py --strategy ma7_ma25.py --symbol BTC/USDT --timeframe 1h --backtest
+# python strategy_framework.py --strategy ma7_ma25 --symbol BTC/USDT --timeframe 1h --backtest
