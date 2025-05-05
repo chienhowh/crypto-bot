@@ -16,7 +16,8 @@ CHAT_ID = os.getenv("CHAT_ID")
 TEST_KEY = os.getenv("TEST_KEY")
 TEST_SECRET = os.getenv("TEST_SECRET")
 
-symbols = ['BTC/USDT', 'ETH/USDT']
+# symbols = ['BTC/USDT', 'ETH/USDT']
+symbols = ['ETH/USDT']
 initial_balance = 3000
 timeframe = '1h'
 fetch_limit = 100
@@ -134,31 +135,55 @@ def simulate_trade(symbol, df):
     global state
     df = ma7_ma25.strategy(df)
     last = df.iloc[-1]
-
+    
     signal = last['signal']
     now_time = last['timestamp']
     s = state[symbol]
-    account_balance = get_account_balance()
-        
-    # 计算交易数量（这里简化处理，实际应用中可能需要更复杂的仓位管理）
-    trade_amount = account_balance * 0.1 / last['open']  # 使用10%资金
+    curr_price = last['close']
 
-    if signal in ['buy', 'sell'] and signal != 'hold':
-        if s['last_signal_time'] == now_time:
-            return  # 已处理过
-            
-        # 获取实际账户余额
+    # === 自動偵測出場邏輯 ===
+    stoploss_pct = 0.003
+    trailing_stop_pct = 0.015
+    
+    if s['position'] == 'long':
+        s['highest_close'] = max(s.get('highest_close', curr_price), curr_price)
+        trail_stop = s['highest_close'] * (1 - trailing_stop_pct)
+        stop_loss = s['entry_price'] * (1 - stoploss_pct)
+
+        if curr_price < trail_stop or curr_price < stop_loss:
+            log(f"🛑 {symbol} LONG 出場 | 現價: {curr_price:.2f}, 停利線: {trail_stop:.2f}, 停損線: {stop_loss:.2f}", "TRADE")
+            execute_trade(symbol, 'sell')
+            s['position'] = None
+            s['entry_price'] = None
+            s['highest_close'] = None
+
+    elif s['position'] == 'short':
+        s['lowest_close'] = min(s.get('lowest_close', curr_price), curr_price)
+        trail_stop = s['lowest_close'] * (1 + trailing_stop_pct)
+        stop_loss = s['entry_price'] * (1 + stoploss_pct)
+
+        if curr_price > trail_stop or curr_price > stop_loss:
+            log(f"🛑 {symbol} SHORT 出場 | 現價: {curr_price:.2f}, 停利線: {trail_stop:.2f}, 停損線: {stop_loss:.2f}", "TRADE")
+            execute_trade(symbol, 'buy')
+            s['position'] = None
+            s['entry_price'] = None
+            s['lowest_close'] = None
+    
+    # === 建倉處理 ===
+    if signal in ['buy', 'sell'] and s.get('last_signal_time') != now_time:
         usdt_balance = get_account_balance()
-        
-        # 计算交易数量（这里简化处理，实际应用中可能需要更复杂的仓位管理）
-        trade_amount = usdt_balance * 0.95 / last['open']  # 使用10%资金
-        
-        # 执行交易
-        execute_trade(symbol, signal, trade_amount)
-        
-        s['last_signal_time'] = now_time
+        trade_amount = usdt_balance * 0.95 / last['open']
 
-    # 检查当前仓位并报告
+        execute_trade(symbol, signal, trade_amount)
+        s['last_signal_time'] = now_time
+        s['entry_price'] = last['open']
+        s['position'] = 'long' if signal == 'buy' else 'short'
+        if signal == 'buy':
+            s['highest_close'] = last['close']
+        else:
+            s['lowest_close'] = last['close']
+
+    # === 倉位狀態回報 ===
     try:
         positions = exchange.fetch_positions([symbol])
         position_size = 0
@@ -168,7 +193,6 @@ def simulate_trade(symbol, df):
                 position_size = float(pos['contracts'])
                 position_side = pos['side']
                 break
-                
         log(f"{symbol} 💼 Position: {position_side} {position_size} | Time: {now_time}", "STATUS")
     except Exception as e:
         log(f"Position check error: {e}", "ERROR")
@@ -191,7 +215,7 @@ try:
         for symbol in symbols:
             df = fetch_ohlcv(symbol)
             simulate_trade(symbol, df)
-        save_trades()
+        # save_trades()
         time.sleep(interval)
 
 except KeyboardInterrupt:
