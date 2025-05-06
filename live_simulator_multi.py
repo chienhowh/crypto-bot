@@ -3,7 +3,7 @@ import ccxt
 import pandas as pd
 import time
 from datetime import datetime
-from strategies import ma7_ma25
+from testback_strategies import ma7_ma25
 from dotenv import load_dotenv
 import os
 import requests
@@ -20,7 +20,7 @@ TEST_SECRET = os.getenv("TEST_SECRET")
 symbols = ['ETH/USDT']
 initial_balance = 3000
 timeframe = '1h'
-fetch_limit = 100
+fetch_limit = 50
 interval = 60  # seconds
 
 exchange_id = 'binance'
@@ -205,22 +205,27 @@ def save_trades():
         df = pd.DataFrame(all_trades)
         df.to_csv('sim_trades.csv', index=False)
 
-try:
-    log("🚀 Multi-symbol 币安测试网交易开始...")
-    # 检查连接
-    markets = exchange.load_markets()
-    log(f"Successfully connected to Binance Testnet. Available markets: {len(markets)}", "INFO")
+# try:
+#     log("🚀 Multi-symbol 币安测试网交易开始...")
+#     # 检查连接
+#     markets = exchange.load_markets()
+#     log(f"Successfully connected to Binance Testnet. Available markets: {len(markets)}", "INFO")
     
-    while True:
-        for symbol in symbols:
-            df = fetch_ohlcv(symbol)
-            simulate_trade(symbol, df)
-        # save_trades()
-        time.sleep(interval)
+#     while True:
+#         for symbol in symbols:
+#             df = fetch_ohlcv(symbol)
+#             simulate_trade(symbol, df)
+#         # save_trades()
+#         time.sleep(interval)
 
-except KeyboardInterrupt:
-    log("🛑 停止交易，保存交易记录...")
-    save_trades()
-except Exception as e:
-    log(f"Unexpected error: {e}", "ERROR")
-    save_trades()
+# except KeyboardInterrupt:
+#     log("🛑 停止交易，保存交易记录...")
+#     save_trades()
+# except Exception as e:
+#     log(f"Unexpected error: {e}", "ERROR")
+#     save_trades()
+
+
+df = fetch_ohlcv('BTC/USDT')
+df = ma7_ma25.strategy(df)
+print(df)

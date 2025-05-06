@@ -1,7 +1,8 @@
 from enum import Enum
 
 class EntryType(Enum):
-    BUY = 'buy'
+    # action
+    BUY = 'buy'  
     SELL = 'sell'
     CLOSE_LONG = 'close_long'
     CLOSE_SHORT = 'close_short'
@@ -10,6 +11,7 @@ class EntryType(Enum):
     STOPLOSS = 'stoploss'
     TAKEPROFIT = 'takeprofit'
     TRAILING_STOP = 'trailing_stop'
+    # position
     LONG = 'long'
     SHORT = 'short'
     HOLD = 'hold'

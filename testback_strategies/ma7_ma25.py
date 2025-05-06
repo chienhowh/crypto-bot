@@ -392,6 +392,8 @@ def strategy(df):
     highest_close = None
     lowest_close = None
 
+    df = df.iloc[:-1]  # 去掉尚未封閉的最後一根 candle
+    
     for i in range(26, len(df) - 1):
         prev = df.iloc[i - 1]
         curr = df.iloc[i]

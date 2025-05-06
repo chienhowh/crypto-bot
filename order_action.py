@@ -2,7 +2,6 @@ import ccxt
 import pandas as pd
 import time
 from datetime import datetime
-from strategies import ma7_ma25
 from dotenv import load_dotenv
 from utils import log
 import os
@@ -37,6 +36,10 @@ balance = exchange.fetch_balance()
 usdt_balance = balance['USDT']['free'] if 'USDT' in balance else 0
 print('usdt_balance', usdt_balance)
 
+def get_balance():
+    balance = exchange.fetch_balance()
+    return balance['USDT']['free'] if 'USDT' in balance else 0
+
 def get_position_info(symbol):
  
     try:
@@ -52,20 +55,17 @@ def get_position_info(symbol):
     return 0, None
 
 # new_size: 開倉 offset_size: 平倉
-def execute_trade(symbol, entry_type: EntryType, new_size=None, offset_size=None):
+def execute_trade(symbol, entry_type: EntryType, new_size=None):
     try:
         if entry_type == EntryType.REVERSE_TO_SHORT:
-            if offset_size:
-                auto_close(symbol)
-                # safe_order(symbol, 'sell', offset_size, reduce_only=True)
+            auto_close(symbol)
             if new_size:
                 order = safe_order(symbol, 'sell', new_size)
                 entry_price = float(order['average'])  # 平均成交價格
                 create_protective_orders(symbol, EntryType.SHORT, entry_price)
 
         elif entry_type == EntryType.REVERSE_TO_LONG:
-            if offset_size:
-                auto_close(symbol)
+            auto_close(symbol)
             if new_size:
                 order = safe_order(symbol, 'buy', new_size)
                 entry_price = float(order['average'])  # 平均成交價格
@@ -218,20 +218,37 @@ def auto_close(symbol):
     except Exception as e:
         log(f"{symbol} ❌ 平倉失敗：{e}", "ERROR")  
         
+def get_current_price(symbol):
+    try:
+        ticker = exchange.fetch_ticker(symbol)
+        return ticker['last']
+    except Exception as e:
+        log(f"{symbol} ❌ 無法獲取價格: {e}", "ERROR")
+        return None
+
+def calculate_order_size(symbol, leverage=20, ratio=0.4):
+    usdt_balance = get_balance()
+    price = get_current_price(symbol)
+    if price:
+        usd_to_use = usdt_balance * ratio
+        size = usd_to_use * leverage / price
+        return round(size, 3)  # 四捨五入避免小數過多
+    return 0
+        
 # 检查现有仓位
-size, side = get_position_info('ETH/USDT')
-print('size', size)
-print('side', side)
+# size, side = get_position_info('ETH/USDT')
+# print('size', size)
+# print('side', side)
 
 # execute_trade('ETH/USDT', EntryType.BUY, new_size=0.03)
 # execute_trade('ETH/USDT', EntryType.SELL, new_size=0.03)
 # execute_trade('ETH/USDT', EntryType.CLOSE_LONG, offset_size=0.1)
 # execute_trade('ETH/USDT', EntryType.CLOSE_LONG, offset_size=0.03)
-execute_trade('ETH/USDT', EntryType.REVERSE_TO_SHORT, new_size=0.05, offset_size=0.05)
+# execute_trade('ETH/USDT', EntryType.REVERSE_TO_SHORT, new_size=0.05, offset_size=0.05)
 # execute_trade('ETH/USDT', EntryType.REVERSE_TO_LONG, new_size=0.05, offset_size=0.05)
 
 # 建倉: limit, sell
 # order = exchange.create_order(symbol='ETH/USDT', type='market', side='buy', amount=0.05)
 # print('order', order)
-sys.exit()
+# sys.exit()
 
