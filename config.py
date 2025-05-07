@@ -1,13 +1,19 @@
 # config.py
 import os
 import ccxt
-from dotenv import load_dotenv
 
-load_dotenv()
+# 檢查是否是本地環境（有 .env 檔才載入）
+if os.path.exists('.env'):
+    from dotenv import load_dotenv
+    load_dotenv()
+
 
 TEST_KEY = os.getenv("TEST_KEY")
 TEST_SECRET = os.getenv("TEST_SECRET")
-print('qqq', TEST_KEY)
+
+if not TEST_KEY or not TEST_SECRET:
+    raise Exception("❌ 無法取得 TEST_KEY 或 TEST_SECRET，請檢查環境變數是否正確設定")
+
 symbols = ['BTC/USDT']
 leverage = 20
 timeframe = '1h'
