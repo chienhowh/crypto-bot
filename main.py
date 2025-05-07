@@ -1,5 +1,7 @@
 from realtime_strategies import ma7_ma25
 from config import create_exchange, symbols, leverage
+import os
+print("main:", list(os.environ.keys()))
 if __name__ == "__main__":
     exchange = create_exchange()
 
