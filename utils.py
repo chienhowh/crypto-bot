@@ -2,10 +2,11 @@ from datetime import datetime
 import requests
 import os
 
-# 檢查是否是本地環境（有 .env 檔才載入）
-if os.path.exists('.env'):
+try:
     from dotenv import load_dotenv
     load_dotenv()
+except:
+    pass
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 CHAT_ID = os.getenv('CHAT_ID')

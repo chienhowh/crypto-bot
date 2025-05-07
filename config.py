@@ -2,11 +2,11 @@
 import os
 import ccxt
 
-# 檢查是否是本地環境（有 .env 檔才載入）
-if os.path.exists('.env'):
+try:
     from dotenv import load_dotenv
     load_dotenv()
-
+except:
+    pass
 
 TEST_KEY = os.getenv("TEST_KEY")
 TEST_SECRET = os.getenv("TEST_SECRET")
