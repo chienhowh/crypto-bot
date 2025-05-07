@@ -3,69 +3,70 @@ import pandas as pd
 import time
 from utils import log
 from order_action import execute_trade, calculate_order_size
-from config import exchange, symbols, timeframe, fetch_limit, interval
+from config import symbols, timeframe, fetch_limit, interval
 
 
 
 state = {symbol: {'position': None} for symbol in symbols}
 
-def fetch_ohlcv(symbol):
-    try:
-        ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=fetch_limit)
-        df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+def run(exchange):
+    def fetch_ohlcv(symbol):
+        try:
+            ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=fetch_limit)
+            df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+            return df
+        except Exception as e:
+            log(f"Error fetching OHLCV: {e}", "ERROR")
+            return None
+        
+    # With enum ma7, ma25 移動停利
+    # 自動停損停利，只要找出交叉就好
+    def strategy(df):
+        df['ma7'] = df['close'].rolling(7).mean()
+        df['ma25'] = df['close'].rolling(25).mean()
+        df['signal'] = None
+        df = df.iloc[:-1].copy()  # 去掉尚未封閉的最後一根 candle
+        
+        for i in range(26, len(df)):
+            prev = df.iloc[i - 1]
+            curr = df.iloc[i]
+        
+            if prev['ma7'] < prev['ma25'] and curr['ma7'] > curr['ma25']:
+                df.at[i, 'signal'] = EntryType.BUY
+
+            elif prev['ma7'] > prev['ma25'] and curr['ma7'] < curr['ma25']:
+                df.at[i, 'signal'] = EntryType.SELL
+
         return df
-    except Exception as e:
-        log(f"Error fetching OHLCV: {e}", "ERROR")
-        return None
     
-# With enum ma7, ma25 移動停利
-# 自動停損停利，只要找出交叉就好
-def strategy(df):
-    df['ma7'] = df['close'].rolling(7).mean()
-    df['ma25'] = df['close'].rolling(25).mean()
-    df['signal'] = None
-    df = df.iloc[:-1].copy()  # 去掉尚未封閉的最後一根 candle
     
-    for i in range(26, len(df)):
-        prev = df.iloc[i - 1]
-        curr = df.iloc[i]
-       
-        if prev['ma7'] < prev['ma25'] and curr['ma7'] > curr['ma25']:
-            df.at[i, 'signal'] = EntryType.BUY
+    def simulate_trade(symbol, df):
+        global state
+        df = strategy(df)
+        last = df.iloc[-1]
+        
+        signal = last['signal']
+        s = state[symbol]
+        print('monitor', symbol, signal)
+        order_size = calculate_order_size(exchange ,symbol)
+        
+        if s['position'] is None:
+            if(signal == EntryType.BUY):
+                execute_trade(exchange, symbol, EntryType.BUY, order_size)
+                s['position'] = EntryType.LONG
+            elif(signal == EntryType.SELL):
+                execute_trade(exchange, symbol, EntryType.SELL, order_size)
+                s['position'] = EntryType.SHORT
 
-        elif prev['ma7'] > prev['ma25'] and curr['ma7'] < curr['ma25']:
-            df.at[i, 'signal'] = EntryType.SELL
-
-    return df
-    
-def simulate_trade(symbol, df):
-    global state
-    df = strategy(df)
-    last = df.iloc[-1]
-    
-    signal = last['signal']
-    s = state[symbol]
-    print('monitor', symbol, signal)
-    order_size = calculate_order_size(symbol)
-    
-    if s['position'] is None:
-        if(signal == EntryType.BUY):
-            execute_trade(symbol, EntryType.BUY, order_size)
-            s['position'] = EntryType.LONG
-        elif(signal == EntryType.SELL):
-            execute_trade(symbol, EntryType.SELL, order_size)
+        elif s['position'] == EntryType.LONG and signal == EntryType.SELL:
+            execute_trade(exchange, symbol, EntryType.REVERSE_TO_SHORT, order_size)
             s['position'] = EntryType.SHORT
-
-    elif s['position'] == EntryType.LONG and signal == EntryType.SELL:
-        execute_trade(symbol, EntryType.REVERSE_TO_SHORT, order_size)
-        s['position'] = EntryType.SHORT
+        
+        elif s['position'] == EntryType.SHORT and signal == EntryType.BUY:
+            execute_trade(exchange, symbol, EntryType.REVERSE_TO_LONG, order_size)
+            s['position'] = EntryType.LONG
     
-    elif s['position'] == EntryType.SHORT and signal == EntryType.BUY:
-        execute_trade(symbol, EntryType.REVERSE_TO_LONG, order_size)
-        s['position'] = EntryType.LONG
-
-def run():
     try:
         log("🚀 Multi-symbol 币安测试网交易开始...")
         # 检查连接

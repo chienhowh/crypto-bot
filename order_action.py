@@ -1,25 +1,12 @@
-import ccxt
-import pandas as pd
 import time
-from datetime import datetime
-from dotenv import load_dotenv
 from utils import log
-import os
-import requests
-import sys
 from enums import EntryType
-from config import exchange
 
-initial_balance = 3000
-timeframe = '1h'
-fetch_limit = 100
-interval = 60  # seconds
-
-def get_balance():
+def get_balance(exchange):
     balance = exchange.fetch_balance()
     return balance['USDT']['free'] if 'USDT' in balance else 0
 
-def get_position_info(symbol):
+def get_position_info(exchange, symbol):
  
     try:
         positions = exchange.fetch_positions([symbol])
@@ -34,40 +21,40 @@ def get_position_info(symbol):
     return 0, None
 
 # new_size: 開倉 offset_size: 平倉
-def execute_trade(symbol, entry_type: EntryType, new_size=None):
+def execute_trade(exchange, symbol, entry_type: EntryType, new_size=None):
     try:
         if entry_type == EntryType.REVERSE_TO_SHORT:
-            auto_close(symbol)
+            auto_close(exchange, symbol)
             if new_size:
-                order = safe_order(symbol, 'sell', new_size)
+                order = safe_order(exchange, symbol, 'sell', new_size)
                 entry_price = float(order['average'])  # 平均成交價格
-                create_protective_orders(symbol, EntryType.SHORT, entry_price)
+                create_protective_orders(exchange, symbol, EntryType.SHORT, entry_price)
 
         elif entry_type == EntryType.REVERSE_TO_LONG:
-            auto_close(symbol)
+            auto_close(exchange, symbol)
             if new_size:
-                order = safe_order(symbol, 'buy', new_size)
+                order = safe_order(exchange, symbol, 'buy', new_size)
                 entry_price = float(order['average'])  # 平均成交價格
-                create_protective_orders(symbol, EntryType.LONG, entry_price)
+                create_protective_orders(exchange, symbol, EntryType.LONG, entry_price)
 
         elif entry_type == EntryType.BUY:
             if new_size:
-                order = safe_order(symbol, 'buy', new_size)
+                order = safe_order(exchange, symbol, 'buy', new_size)
                 entry_price = float(order['average'])  # 平均成交價格
-                create_protective_orders(symbol, EntryType.LONG, entry_price)
+                create_protective_orders(exchange, symbol, EntryType.LONG, entry_price)
             else:
                 log(f"{symbol} ❗ 缺少 new_size 參數 (買單)", "ERROR")
 
         elif entry_type == EntryType.SELL:
             if new_size:
-                order = safe_order(symbol, 'sell', new_size)
+                order = safe_order(exchange, symbol, 'sell', new_size)
                 entry_price = float(order['average'])  # 平均成交價格
-                create_protective_orders(symbol, EntryType.SHORT, entry_price)
+                create_protective_orders(exchange, symbol, EntryType.SHORT, entry_price)
             else:
                 log(f"{symbol} ❗ 缺少 new_size 參數 (賣單)", "ERROR")
 
         elif entry_type == EntryType.CLOSE_LONG or entry_type == EntryType.CLOSE_SHORT:
-            auto_close(symbol)
+            auto_close(exchange, symbol)
 
         else:
             log(f"{symbol} ⚠️ 未知的 entry_type: {entry_type}", "ERROR")
@@ -75,9 +62,9 @@ def execute_trade(symbol, entry_type: EntryType, new_size=None):
     except Exception as e:
         log(f"{symbol} ❌ execute_trade 發生錯誤：{e}", "ERROR")
         
-def create_protective_orders(symbol, side, entry_price, stop_loss_pct=0.003, trailing_stop_pct=0.02):
+def create_protective_orders(exchange, symbol, side, entry_price, stop_loss_pct=0.003, trailing_stop_pct=0.02):
     params = {}
-    size, _ = get_position_info(symbol)  # ⬅️ 加上這一行
+    size, _ = get_position_info(exchange, symbol)  # ⬅️ 加上這一行
     if size < 0.001:
         log(f"{symbol} ❌ 倉位過小（{size}），無法掛保護單", "ERROR")
         return
@@ -129,7 +116,7 @@ def create_protective_orders(symbol, side, entry_price, stop_loss_pct=0.003, tra
         log(f"{symbol} ❌ 掛保護單失敗：{e}", "ERROR")
 
 
-def safe_order(symbol, side, amount, reduce_only=False, max_retry=1, delay_sec=3):
+def safe_order(exchange, symbol, side, amount, reduce_only=False, max_retry=1, delay_sec=3):
     """
     安全下單（含 reduceOnly），自動處理 timeout 重送
     side: 'buy' 或 'sell'
@@ -159,7 +146,7 @@ def safe_order(symbol, side, amount, reduce_only=False, max_retry=1, delay_sec=3
                 time.sleep(delay_sec)
 
                 # 嘗試查倉位，看是否其實已成交
-                size, current_side = get_position_info(symbol)
+                size, current_side = get_position_info(exchange, symbol)
                 if reduce_only and size == 0:
                     log(f"{symbol} ✅ 查詢顯示已平倉成功，略過重送", "TRADE")
                     return None
@@ -175,8 +162,8 @@ def safe_order(symbol, side, amount, reduce_only=False, max_retry=1, delay_sec=3
     return None
 
 
-def auto_close(symbol):
-    size, side = get_position_info(symbol)
+def auto_close(exchange, symbol):
+    size, side = get_position_info(exchange, symbol)
     
      # 取消所有掛單
     exchange.cancel_all_orders(symbol)
@@ -189,15 +176,15 @@ def auto_close(symbol):
 
     try:
         if side == 'long':
-            safe_order(symbol, 'sell', size, reduce_only=True)
+            safe_order(exchange, symbol, 'sell', size, reduce_only=True)
         elif side == 'short':
-            safe_order(symbol, 'buy', size, reduce_only=True)
+            safe_order(exchange, symbol, 'buy', size, reduce_only=True)
         else:
             log(f"{symbol} ⚠️ 倉位方向未知: {side}", "ERROR")
     except Exception as e:
         log(f"{symbol} ❌ 平倉失敗：{e}", "ERROR")  
         
-def get_current_price(symbol):
+def get_current_price(exchange, symbol):
     try:
         ticker = exchange.fetch_ticker(symbol)
         return ticker['last']
@@ -205,9 +192,9 @@ def get_current_price(symbol):
         log(f"{symbol} ❌ 無法獲取價格: {e}", "ERROR")
         return None
 
-def calculate_order_size(symbol, leverage=20, ratio=0.4):
-    usdt_balance = get_balance()
-    price = get_current_price(symbol)
+def calculate_order_size(exchange, symbol, leverage=20, ratio=0.4):
+    usdt_balance = get_balance(exchange)
+    price = get_current_price(exchange, symbol)
     if price:
         usd_to_use = usdt_balance * ratio
         size = usd_to_use * leverage / price
