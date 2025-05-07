@@ -7,7 +7,7 @@ load_dotenv()
 
 TEST_KEY = os.getenv("TEST_KEY")
 TEST_SECRET = os.getenv("TEST_SECRET")
-
+print('qqq', TEST_KEY)
 symbols = ['BTC/USDT']
 leverage = 20
 timeframe = '1h'
