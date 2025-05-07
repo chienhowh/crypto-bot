@@ -241,7 +241,6 @@ def calculate_order_size(symbol, leverage=20, ratio=0.4):
 # print('side', side)
 
 # execute_trade('ETH/USDT', EntryType.BUY, new_size=0.03)
-# execute_trade('ETH/USDT', EntryType.SELL, new_size=0.03)
 # execute_trade('ETH/USDT', EntryType.CLOSE_LONG, offset_size=0.1)
 # execute_trade('ETH/USDT', EntryType.CLOSE_LONG, offset_size=0.03)
 # execute_trade('ETH/USDT', EntryType.REVERSE_TO_SHORT, new_size=0.05, offset_size=0.05)

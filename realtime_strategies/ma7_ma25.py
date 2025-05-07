@@ -3,12 +3,10 @@ import ccxt
 import pandas as pd
 import time
 from utils import log
-from datetime import datetime
 from dotenv import load_dotenv
 import os
-import requests
-import sys
 from order_action import execute_trade, calculate_order_size
+
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -48,9 +46,7 @@ for symbol in symbols:
 
 def fetch_ohlcv(symbol):
     try:
-        # 由于测试网可能数据有限，尝试从真实网络获取历史数据
-        real_exchange = ccxt.binance()
-        ohlcv = real_exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=fetch_limit)
+        ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=fetch_limit)
         df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
         return df
@@ -85,6 +81,7 @@ def simulate_trade(symbol, df):
     
     signal = last['signal']
     s = state[symbol]
+    print('monitor', symbol, signal)
     order_size = calculate_order_size(symbol)
     
     if s['position'] is None:
@@ -102,26 +99,27 @@ def simulate_trade(symbol, df):
     elif s['position'] == EntryType.SHORT and signal == EntryType.BUY:
         execute_trade(symbol, EntryType.REVERSE_TO_LONG, order_size)
         s['position'] = EntryType.LONG
-    
-try:
-    log("🚀 Multi-symbol 币安测试网交易开始...")
-    # 检查连接
-    markets = exchange.load_markets()
-    log(f"Successfully connected to Binance Testnet. Available markets: {len(markets)}", "INFO")
-    
-    while True:
-        for symbol in symbols:
-            df = fetch_ohlcv(symbol)
-            simulate_trade(symbol, df)
-        # save_trades()
-        time.sleep(interval)
 
-except KeyboardInterrupt:
-    log("🛑 停止交易，保存交易记录...")
-except Exception as e:
-    log(f"Unexpected error: {e}", "ERROR")
+def run():
+    try:
+        log("🚀 Multi-symbol 币安测试网交易开始...")
+        # 检查连接
+        markets = exchange.load_markets()
+        log(f"Successfully connected to Binance Testnet. Available markets: {len(markets)}", "INFO")
+        
+        while True:
+            for symbol in symbols:
+                df = fetch_ohlcv(symbol)
+                simulate_trade(symbol, df)
+            # save_trades()
+            time.sleep(interval)
 
+    except KeyboardInterrupt:
+        log("🛑 停止交易，保存交易记录...")
+    except Exception as e:
+        log(f"Unexpected error: {e}", "ERROR")
 
+# log('testing')
 # df = fetch_ohlcv('BTC/USDT')
 # test = strategy(df)
 # print(test)
