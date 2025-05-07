@@ -8,33 +8,12 @@ import os
 import requests
 import sys
 from enums import EntryType
+from config import exchange
 
-load_dotenv()
-TEST_KEY = os.getenv("TEST_KEY")
-TEST_SECRET = os.getenv("TEST_SECRET")
-
-# TODO: 調槓桿
-# symbols = ['BTC/USDT', 'ETH/USDT']
-symbols = ['ETH/USDT']
 initial_balance = 3000
 timeframe = '1h'
 fetch_limit = 100
 interval = 60  # seconds
-
-exchange_id = 'binance'
-exchange_class = getattr(ccxt, exchange_id)
-exchange = exchange_class({
-    'apiKey': TEST_KEY,
-    'secret': TEST_SECRET,
-    'options':{'defaultType':'future'}
-})
-
-exchange.set_sandbox_mode(True)
-exchange.set_leverage(leverage=50, symbol='ETH/USDT')
-
-balance = exchange.fetch_balance()
-usdt_balance = balance['USDT']['free'] if 'USDT' in balance else 0
-print('usdt_balance', usdt_balance)
 
 def get_balance():
     balance = exchange.fetch_balance()

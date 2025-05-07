@@ -1,48 +1,13 @@
 from enums import EntryType
-import ccxt
 import pandas as pd
 import time
 from utils import log
-from dotenv import load_dotenv
-import os
 from order_action import execute_trade, calculate_order_size
+from config import exchange, symbols, timeframe, fetch_limit, interval
 
-load_dotenv()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-CHAT_ID = os.getenv("CHAT_ID")
-TEST_KEY = os.getenv("TEST_KEY")
-TEST_SECRET = os.getenv("TEST_SECRET")
 
-# symbols = ['BTC/USDT', 'ETH/USDT']
-symbols = ['BTC/USDT']
-initial_balance = 3000
-timeframe = '1h'
-fetch_limit = 50
-interval = 60  # seconds
-
-exchange_id = 'binance'
-exchange_class = getattr(ccxt, exchange_id)
-exchange = exchange_class({
-    'apiKey': TEST_KEY,
-    'secret': TEST_SECRET,
-    'options':{'defaultType':'future'}
-})
-
-exchange.set_sandbox_mode(True)
-exchange.set_leverage(leverage=20, symbol='BTC/USDT')
-balance = exchange.fetch_balance()
-usdt_balance = balance['USDT']['free'] if 'USDT' in balance else 0
-print(usdt_balance)
-
-state = {}
-# symbols = ['BTC/USDT', 'ETH/USDT']
-symbols = ['BTC/USDT']
-
-for symbol in symbols:
-    state[symbol] = {
-        'position': None,
-    }
+state = {symbol: {'position': None} for symbol in symbols}
 
 def fetch_ohlcv(symbol):
     try:
