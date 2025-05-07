@@ -7,9 +7,7 @@ load_dotenv()
 
 TEST_KEY = os.getenv("TEST_KEY")
 TEST_SECRET = os.getenv("TEST_SECRET")
-TEST = os.environ.get("TEST")
-print("可用环境变量键:", list(os.environ.keys()))
-print('TEST',TEST)
+
 if not TEST_KEY or not TEST_SECRET:
     print("❌ 無法取得 TEST_KEY 或 TEST_SECRET，請檢查環境變數是否正確設定")
 
