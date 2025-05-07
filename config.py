@@ -2,17 +2,15 @@
 import os
 import ccxt
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except:
-    pass
+from dotenv import load_dotenv
+load_dotenv()
 
 TEST_KEY = os.getenv("TEST_KEY")
 TEST_SECRET = os.getenv("TEST_SECRET")
-
+TEST = os.environ.get("TEST")
+print('TEST',TEST)
 if not TEST_KEY or not TEST_SECRET:
-    raise Exception("❌ 無法取得 TEST_KEY 或 TEST_SECRET，請檢查環境變數是否正確設定")
+    print("❌ 無法取得 TEST_KEY 或 TEST_SECRET，請檢查環境變數是否正確設定")
 
 symbols = ['BTC/USDT']
 leverage = 20

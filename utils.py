@@ -1,18 +1,12 @@
 from datetime import datetime
 import requests
 import os
+from dotenv import load_dotenv
 
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except:
-    pass
+load_dotenv()
 
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 CHAT_ID = os.getenv('CHAT_ID')
-
-if not BOT_TOKEN or not CHAT_ID:
-    raise Exception("❌ 無法取得 TEST_KEY 或 TEST_SECRET，請檢查環境變數是否正確設定")
 
 def log(message, level="INFO"):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
