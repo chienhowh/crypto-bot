@@ -13,6 +13,10 @@ def run(exchange):
     def fetch_ohlcv(symbol):
         try:
             ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=fetch_limit)
+            if not ohlcv:
+                log(f"❌ {symbol} OHLCV 資料為空", "ERROR")
+                return None
+            
             df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
             df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
             return df
@@ -43,6 +47,11 @@ def run(exchange):
     
     def simulate_trade(symbol, df):
         global state
+        
+        if df is None or df.empty:
+            log(f"❌ OHLCV 資料為 None 或空值，跳過 {symbol} 的交易模擬", "ERROR")
+            return
+        
         df = strategy(df)
         last = df.iloc[-1]
         
